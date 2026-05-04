@@ -1,0 +1,31 @@
+# =============================================================================
+# requirements.txt — 皮带传送带锚杆检测系统依赖清单
+# =============================================================================
+#
+# 安装全部依赖：
+#   pip install -r requirements.txt
+#
+# GPU 加速（可选）：
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+#   pip install onnxruntime-gpu          # 替换 onnxruntime（ONNX GPU 加速）
+#
+# PyTorch .pt 模型支持说明：
+#   首次加载 .pt 模型时，torch.hub 会自动从 GitHub 下载 ultralytics/yolov5 源码
+#   （约数 MB）并缓存到 ~/.cache/torch/hub/，之后无需网络即可使用。
+# =============================================================================
+
+# ---- GUI 框架 ----
+PyQt5>=5.15.0
+
+# ---- 图像处理 ----
+opencv-python>=4.5.0
+numpy>=1.21.0
+
+# ---- 深度学习推理框架 ----
+# ONNX (.onnx 模型)
+onnxruntime>=1.12.0          # CPU 推理；GPU 推理改用 onnxruntime-gpu
+
+# PyTorch (.pt 模型)
+torch>=1.10.0
+torchvision>=0.11.0
+# 注：.pt 模型通过 torch.hub 加载，无需单独安装 yolov5 包

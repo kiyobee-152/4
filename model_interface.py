@@ -442,36 +442,39 @@ class YOLOv5ONNXDetector(BaseDetector):
 # 调用方只需提供模型权重文件路径，无需关心底层使用哪个检测器类。
 # 在 main.py 的 cb_weights_changed() 方法中，当用户在 GUI 下拉框中切换模型时，
 # 会调用此函数来动态加载新模型。
-def create_detector(weights: str, model_type: str = 'auto', **kwargs) -> BaseDetector:
+def create_detector(weights: str, model_type: str = 'auto', **kwargs):
     """
     工厂函数：根据模型文件创建对应的检测器
-    
+
     设计意图：
     - 对外隐藏具体的检测器实现类，调用方通过此函数统一创建
     - 支持自动识别模型类型（根据文件扩展名），也可手动指定
     - 通过 **kwargs 透传参数（如 conf_thres、iou_thres）给具体检测器构造函数
     - 未来扩展新的模型格式时，只需在此函数中添加分支即可
-    
+
     Args:
-        weights: 模型权重文件路径（如 './weights/yolov5s.onnx'）
+        weights: 模型权重文件路径
+            - ONNX 格式：如 './weights/yolov5s.onnx'
+            - PyTorch 格式：如 './weights/yolov5s.pt'
         model_type: 模型类型，可选值：
             - 'auto': 自动根据文件扩展名判断（默认）
             - 'onnx': 强制使用 ONNX 检测器
-            - 'pytorch': 强制使用 PyTorch 检测器（当前未实现）
+            - 'pytorch': 强制使用 PyTorch (.pt) 检测器
         **kwargs: 传递给检测器构造函数的额外参数，支持：
             - names (List[str]): 类别名称列表
             - conf_thres (float): 置信度阈值
             - iou_thres (float): IOU 阈值
-        
+            - device_preference (str): 'auto' | 'gpu' | 'cpu'
+
     Returns:
-        BaseDetector 的子类实例（当前返回 YOLOv5ONNXDetector）
-        
+        检测器实例（YOLOv5ONNXDetector 或 YOLOv5PyTorchDetector）
+
     Raises:
-        NotImplementedError: 当指定 pytorch 类型时（暂未实现）
         ValueError: 当指定了不支持的模型类型时
+        ImportError / RuntimeError: 加载 .pt 模型时缺少依赖或文件无效
     """
     import os
-    
+
     if model_type == 'auto':
         # 自动检测模型类型：通过文件扩展名判断
         # os.path.splitext() 将路径拆分为 (去掉扩展名的部分, 扩展名)
@@ -485,15 +488,23 @@ def create_detector(weights: str, model_type: str = 'auto', **kwargs) -> BaseDet
         else:
             # 对于无法识别的扩展名，默认按 ONNX 格式处理
             model_type = 'onnx'  # 默认
-    
+
     # 根据确定的模型类型实例化对应的检测器
     if model_type == 'onnx':
         # 创建并返回 ONNX 检测器实例
         # **kwargs 会将 conf_thres、iou_thres 等参数传入构造函数
         return YOLOv5ONNXDetector(weights, **kwargs)
     elif model_type == 'pytorch':
-        # PyTorch 模型支持接口已预留，但尚未实现
-        # 未来可以在此处添加类似 YOLOv5PyTorchDetector 的实现
-        raise NotImplementedError("PyTorch模型支持待实现")
+        # 延迟导入：仅在实际需要加载 .pt 模型时引入，
+        # 避免没有安装 torch 的环境在导入 model_interface 时就崩溃
+        try:
+            from Yolov5PytorchDet import YOLOv5PyTorchDetector
+        except ImportError as exc:
+            raise ImportError(
+                "加载 .pt 模型失败：无法导入 Yolov5PytorchDet 模块。\n"
+                "请确认 Yolov5PytorchDet.py 文件存在，\n"
+                "并已安装 PyTorch: pip install torch torchvision"
+            ) from exc
+        return YOLOv5PyTorchDetector(weights, **kwargs)
     else:
         raise ValueError(f"不支持的模型类型: {model_type}")
